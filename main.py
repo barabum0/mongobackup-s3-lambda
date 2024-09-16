@@ -1,5 +1,6 @@
 import os
 from typing import Any, Mapping
+import json
 
 import bson
 from bson.json_util import dumps
@@ -13,6 +14,15 @@ def get_config() -> dict[str, Any]:
     dump__dir = os.environ.get("DUMP__DIR", None)
 
     if not all(v is not None for v in (mongo__url, mongo__db_name, dump__dir)):
+        print(
+            json.dumps(
+                {
+                    "msg": "Not all of the required env vars were set.",
+                    "level": "FATAL",
+                    "stream_name": "main",
+                }
+            )
+        )
         raise RuntimeError("Not all of the required env vars were set.")
 
     return {
@@ -26,15 +36,8 @@ def dump_collection(collection: Collection[Mapping[str, Any]], db_dir: str) -> N
     bson_file_path = os.path.join(db_dir, f"{collection.name}.bson")
     metadata_file_path = os.path.join(db_dir, f"{collection.name}.metadata.json")
 
-    # Dump collection data to BSON file
     with open(bson_file_path, "wb") as bson_file:
-        # Get total number of documents for progress bar
-        total_docs = collection.count_documents({})
-        cursor = collection.find()
-
-        # Use tqdm for the document iteration
-        for document in cursor:
-            # Encode each document to BSON and write to the file
+        for document in collection.find():
             bson_file.write(bson.BSON.encode(document))
 
     # Extract index information for the collection
@@ -87,6 +90,16 @@ def dump_collection(collection: Collection[Mapping[str, Any]], db_dir: str) -> N
 
 
 def dump_db(config: dict[str, Any]) -> None:
+    print(
+        json.dumps(
+            {
+                "msg": f"Dumping {config['mongo__db_name']}...",
+                "level": "INFO",
+                "stream_name": "main",
+            }
+        )
+    )
+
     client: MongoClient = MongoClient(config["mongo__url"])
     db = client.get_database()
 
@@ -96,5 +109,33 @@ def dump_db(config: dict[str, Any]) -> None:
     collections = db.list_collection_names()
 
     for collection_name in collections:
+        print(
+            json.dumps(
+                {
+                    "msg": f"Dumping collection {collection_name}...",
+                    "level": "INFO",
+                    "stream_name": "main",
+                }
+            )
+        )
         collection = db.get_collection(collection_name)
         dump_collection(collection, db_dir)
+        print(
+            json.dumps(
+                {
+                    "msg": f"Successfully dumped collection {collection_name}!",
+                    "level": "INFO",
+                    "stream_name": "main",
+                }
+            )
+        )
+
+    print(
+        json.dumps(
+            {
+                "msg": f"Successfully dumped {config['mongo__db_name']}!",
+                "level": "INFO",
+                "stream_name": "main",
+            }
+        )
+    )
