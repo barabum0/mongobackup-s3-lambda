@@ -1,4 +1,7 @@
 import os
+import shutil
+import tarfile
+from datetime import datetime
 from typing import Any, Mapping
 import json
 
@@ -103,7 +106,7 @@ def dump_db(config: dict[str, Any]) -> None:
     client: MongoClient = MongoClient(config["mongo__url"])
     db = client.get_database()
 
-    db_dir = str(os.path.join(config["dump__dir"], config["mongo__db_name"]))
+    db_dir = str(os.path.join("/tmp/dump", config["mongo__db_name"]))
     os.makedirs(db_dir, exist_ok=True)
 
     collections = db.list_collection_names()
@@ -129,6 +132,15 @@ def dump_db(config: dict[str, Any]) -> None:
                 }
             )
         )
+
+    tarfile_name = f"{config["mongo__db_name"]}_backup_{datetime.utcnow().strftime("%Y_%m_%d_%H_%M_%S")}.tar.gz"
+    tarfile_path = str(os.path.join(config["DUMP__DIR"], tarfile_name))
+
+    os.makedirs(config["DUMP__DIR"], exist_ok=True)
+    with tarfile.open(name=tarfile_path, mode="w:gz") as tar:
+        tar.add("/tmp/dump", arcname=os.path.basename("/tmp/dump"))
+
+    shutil.rmtree("/tmp/dump")
 
     print(
         json.dumps(
