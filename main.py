@@ -151,3 +151,11 @@ def dump_db(config: dict[str, Any]) -> None:
             }
         )
     )
+
+
+def handler(event: Any, context: Any) -> dict[str, Any]:
+    dump_db(get_config())
+    return {
+        'statusCode': 200,
+        'body': {'msg': 'OK'},
+    }
